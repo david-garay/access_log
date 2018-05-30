@@ -1,0 +1,62 @@
+# !/usr/bin/python
+import re
+from argparse import ArgumentParser
+
+
+def parse(filename, httpcode):
+    reg_match = _RegExLib(httpcode)
+    if not reg_match.http_code:
+        return "Wrong argument"
+
+    try:
+        with open(filename, 'r') as file:
+            line = file.readline()
+            httpcode_counter = 0
+            while line:
+                word_list = line.split('"')
+                if len(word_list) > 1:
+                    field = word_list[2].split(" ")
+                    if httpcode in field[1]:
+                        httpcode_counter = httpcode_counter + 1
+
+                line = file.readline()
+
+            dict_of_data = {
+                httpcode: httpcode_counter,
+            }
+        return dict_of_data
+    except IOError:
+        print "Error opening ", filename
+
+
+class _RegExLib:
+    """Set up regular expressions"""
+    # use https://regexper.com to visualise these if required
+    _reg_school = re.compile('School = (.*)\n')
+    _reg_grade = re.compile('Grade = (.*)\n')
+    _reg_name_score = re.compile('(Name|Score)')
+    # (.*) are (.*?) .* Jan 15 13:49:59 proxy dhcpd: DHCPACK on 192.168.0.23 to 00:80:ad:01:7e:12 (programming) via eth1
+    _reg_dhcpack = re.compile(r'proxy dhcpd: DHCPACK on (.*) to (.*) (.*) (.*)')
+    _reg_mac_address = re.compile(r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})')
+    _reg_http_code = re.compile(r'\d{3}')
+
+    def __init__(self, line):
+        # check whether line has a positive match with all of the regular expressions
+        self.school = self._reg_school.match(line)
+        self.grade = self._reg_grade.match(line)
+        self.name_score = self._reg_name_score.search(line)
+        self.dhcpack = self._reg_dhcpack.search(line)
+        self.mac_address = self._reg_mac_address.search(line)
+        self.http_code = self._reg_http_code.search(line)
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser(description="UVA Exam, parse Access log file")
+    parser.add_argument("--httpcode", dest="httpCode" ,required=True,
+                        help="ECode to be used as filter")
+    parser.add_argument("--file", dest="filename", required=True,
+                        help="input file with Access logfiles")
+    args = parser.parse_args()
+
+    data = parse(args.filename, args.httpCode)
+    print(data)
